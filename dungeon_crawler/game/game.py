@@ -72,6 +72,9 @@ class Game:
         if self.game_won or self.game_lost:
             return
             
+        # Update player's weapon
+        self.player.update_weapon()
+        
         # Update enemy
         self.enemy.update()
         

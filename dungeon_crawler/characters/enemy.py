@@ -26,6 +26,11 @@ class Enemy(Character):
         self.sleep_until = time.time() + 5  # Sleep for 5 seconds
         self.is_sleeping = True
         
+        # Track stun state
+        self.is_stunned = False
+        self.stun_until = 0
+        self.last_hit_time = 0
+        
         # Initialize the base character with enemy-specific attributes
         super().__init__(
             game=game,
@@ -108,6 +113,14 @@ class Enemy(Character):
             else:
                 return  # Don't move while sleeping
         
+        # Check if stunned
+        current_time = pygame.time.get_ticks() / 1000.0
+        if self.is_stunned:
+            if current_time >= self.stun_until:
+                self.is_stunned = False
+            else:
+                return  # Don't move while stunned
+                
         # Track if we've just teleported to avoid getting stuck in portals
         just_teleported = False
         
@@ -367,10 +380,18 @@ class Enemy(Character):
         Args:
             screen: Pygame screen to render on
         """
+        # Determine color based on state
+        if self.is_sleeping:
+            color = (200, 100, 100)  # Lighter red when sleeping
+        elif self.is_stunned:
+            color = (150, 150, 150)  # Gray when stunned
+        else:
+            color = self.color  # Normal color (red)
+            
         # Draw enemy (circle)
         pygame.draw.circle(
             screen, 
-            self.color if not self.is_sleeping else (200, 100, 100),  # Lighter red when sleeping
+            color,
             (int(self.pos[0]), int(self.pos[1])), 
             self.size
         )
@@ -383,3 +404,12 @@ class Enemy(Character):
             # Center the Z on the enemy
             text_rect = z_text.get_rect(center=(int(self.pos[0]), int(self.pos[1])))
             screen.blit(z_text, text_rect)
+            
+        # Draw a "!" above the enemy if stunned
+        elif self.is_stunned:
+            # Draw the ! on top of the circle
+            font = pygame.font.SysFont(None, 24)
+            stun_text = font.render("!", True, (255, 255, 255))
+            # Center the ! on the enemy
+            text_rect = stun_text.get_rect(center=(int(self.pos[0]), int(self.pos[1])))
+            screen.blit(stun_text, text_rect)
