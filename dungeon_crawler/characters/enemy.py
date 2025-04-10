@@ -31,11 +31,15 @@ class Enemy(Character):
         self.stun_until = 0
         self.last_hit_time = 0
         
+        # Position history to detect and break out of loops
+        self.position_history = []
+        self.stuck_counter = 0
+        
         # Initialize the base character with enemy-specific attributes
         super().__init__(
             game=game,
             size=15,
-            speed=2,  # Half the player's speed
+            speed=1,  # 1/4 the player's speed (player speed is 4)
             color=(255, 0, 0)  # Red
         )
     
@@ -162,10 +166,44 @@ class Enemy(Character):
             # Update last direction
             self.last_direction = [dx, dy]
             
+            # Check if we're stuck in a loop by comparing current position to history
+            current_pos_rounded = (round(self.pos[0]), round(self.pos[1]))
+            
+            # Keep history limited to last 10 positions
+            if len(self.position_history) > 10:
+                self.position_history.pop(0)
+                
+            # If we've been in this position recently, increment stuck counter
+            if current_pos_rounded in self.position_history:
+                self.stuck_counter += 1
+            else:
+                self.stuck_counter = 0
+                
+            # Add current position to history
+            self.position_history.append(current_pos_rounded)
+            
+            # If stuck for too long, add randomness to movement
+            if self.stuck_counter > 5:
+                # Add significant randomness to break out of the loop
+                dx += random.uniform(-0.5, 0.5)
+                dy += random.uniform(-0.5, 0.5)
+                # Normalize again after adding randomness
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    dx /= length
+                    dy /= length
+                # Reset stuck counter
+                self.stuck_counter = 0
+            
             # Try to move in the exact direction toward the target
             new_pos = self.pos.copy()
             new_pos[0] += dx * self.speed
             new_pos[1] += dy * self.speed
+            
+            # Add a small random offset to help break out of loops
+            if random.random() < 0.1:  # 10% chance to add randomness
+                new_pos[0] += random.uniform(-0.5, 0.5)
+                new_pos[1] += random.uniform(-0.5, 0.5)
             
             # Check for wall collisions
             if not self.game.map.is_wall(new_pos[0], new_pos[1]):
@@ -174,13 +212,13 @@ class Enemy(Character):
                 # If direct path is blocked, try moving horizontally or vertically
                 # This helps the enemy navigate around corners
                 
-                # Try horizontal movement
+                # Try horizontal movement with slightly increased speed to help get around corners
                 horizontal_pos = self.pos.copy()
-                horizontal_pos[0] += dx * self.speed
+                horizontal_pos[0] += dx * (self.speed * 1.2)
                 
-                # Try vertical movement
+                # Try vertical movement with slightly increased speed to help get around corners
                 vertical_pos = self.pos.copy()
-                vertical_pos[1] += dy * self.speed
+                vertical_pos[1] += dy * (self.speed * 1.2)
                 
                 # Check which direction is valid
                 horizontal_valid = not self.game.map.is_wall(horizontal_pos[0], horizontal_pos[1])
@@ -202,7 +240,36 @@ class Enemy(Character):
                     self.pos = horizontal_pos
                 elif vertical_valid:
                     self.pos = vertical_pos
-                # If neither direction is valid, the enemy stays in place for this frame
+                # If neither direction is valid, try diagonal movements to get unstuck
+                if not horizontal_valid and not vertical_valid:
+                    # Try diagonal movements
+                    diag1_pos = self.pos.copy()
+                    diag1_pos[0] += self.speed
+                    diag1_pos[1] += self.speed
+                    
+                    diag2_pos = self.pos.copy()
+                    diag2_pos[0] += self.speed
+                    diag2_pos[1] -= self.speed
+                    
+                    diag3_pos = self.pos.copy()
+                    diag3_pos[0] -= self.speed
+                    diag3_pos[1] += self.speed
+                    
+                    diag4_pos = self.pos.copy()
+                    diag4_pos[0] -= self.speed
+                    diag4_pos[1] -= self.speed
+                    
+                    # Check which diagonals are valid
+                    diag_positions = [diag1_pos, diag2_pos, diag3_pos, diag4_pos]
+                    valid_diags = []
+                    
+                    for pos in diag_positions:
+                        if not self.game.map.is_wall(pos[0], pos[1]):
+                            valid_diags.append(pos)
+                    
+                    # If any diagonal is valid, choose one randomly
+                    if valid_diags:
+                        self.pos = random.choice(valid_diags)
         
         # Check if enemy is on a portal
         portal_dest = self.game.map.is_portal(self.pos[0], self.pos[1])
