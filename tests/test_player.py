@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 # Add the parent directory to the path so we can import the dungeon_crawler package
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from dungeon_crawler.game.player import Player
+from dungeon_crawler.characters.player import Player
 
 # Initialize pygame for testing
 pygame.init()
@@ -37,7 +37,7 @@ class TestPlayer(unittest.TestCase):
         """Test that the player initializes correctly"""
         self.assertEqual(self.player.size, 15)
         self.assertEqual(self.player.speed, 4)
-        self.assertEqual(self.player.color, (255, 0, 0))  # Red
+        self.assertEqual(self.player.color, (0, 255, 0))  # Green
         self.assertEqual(self.player.last_direction, [0, 0])
         
         # Check that the player position is valid

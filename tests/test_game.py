@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from dungeon_crawler.game import Game
 from dungeon_crawler.map import Map
+from dungeon_crawler.characters import Player, Enemy
 
 # Initialize pygame for testing
 pygame.init()
@@ -20,7 +21,9 @@ class TestGame(unittest.TestCase):
         random.seed(42)
         
         # Create a mock for pygame.display.set_mode to avoid creating a window
-        with patch('pygame.display.set_mode', return_value=pygame.Surface((800, 600))):
+        # Also patch random.choice to avoid issues with Enemy initialization
+        with patch('pygame.display.set_mode', return_value=pygame.Surface((800, 600))), \
+             patch('random.choice', side_effect=lambda x: x[0] if isinstance(x, list) else x):
             self.game = Game()
     
     def tearDown(self):
@@ -34,6 +37,7 @@ class TestGame(unittest.TestCase):
         self.assertEqual(self.game.fps, 60)
         self.assertTrue(self.game.running)
         self.assertFalse(self.game.game_won)
+        self.assertFalse(self.game.game_lost)
         self.assertEqual(self.game.coins_collected, 0)
         self.assertEqual(self.game.total_coins, 5)
         
@@ -42,6 +46,11 @@ class TestGame(unittest.TestCase):
         
         # Check that the player was created
         self.assertIsNotNone(self.game.player)
+        self.assertIsInstance(self.game.player, Player)
+        
+        # Check that the enemy was created
+        self.assertIsNotNone(self.game.enemy)
+        self.assertIsInstance(self.game.enemy, Enemy)
         
         # Check that the UI manager was created
         self.assertIsNotNone(self.game.ui_manager)
@@ -51,10 +60,12 @@ class TestGame(unittest.TestCase):
         # Set up initial state
         self.game.coins_collected = 3
         self.game.game_won = True
+        self.game.game_lost = True
         
-        # Mock the map and player to verify they're reset
+        # Mock the map, player, and enemy to verify they're reset
         self.game.map.generate_random_map = MagicMock()
         self.game.player.reset_position = MagicMock()
+        self.game.enemy.reset_position = MagicMock()
         
         # Reset the game
         self.game.reset_game()
@@ -62,10 +73,12 @@ class TestGame(unittest.TestCase):
         # Check that the game state was reset
         self.assertEqual(self.game.coins_collected, 0)
         self.assertFalse(self.game.game_won)
+        self.assertFalse(self.game.game_lost)
         
-        # Verify that the map and player were reset
+        # Verify that the map, player, and enemy were reset
         self.game.map.generate_random_map.assert_called_once()
         self.game.player.reset_position.assert_called_once()
+        self.game.enemy.reset_position.assert_called_once()
     
     def test_handle_events_quit(self):
         """Test that the game handles quit events"""
@@ -98,6 +111,23 @@ class TestGame(unittest.TestCase):
         """Test that player movement is not handled when game is won"""
         # Set game_won to True
         self.game.game_won = True
+        self.game.game_lost = False
+        
+        # Mock the player's handle_movement method
+        self.game.player.handle_movement = MagicMock()
+        
+        # Handle events
+        with patch('pygame.event.get', return_value=[]):
+            self.game.handle_events()
+        
+        # Verify that handle_movement was not called
+        self.game.player.handle_movement.assert_not_called()
+        
+    def test_handle_events_game_lost(self):
+        """Test that player movement is not handled when game is lost"""
+        # Set game_lost to True
+        self.game.game_won = False
+        self.game.game_lost = True
         
         # Mock the player's handle_movement method
         self.game.player.handle_movement = MagicMock()
@@ -111,8 +141,9 @@ class TestGame(unittest.TestCase):
     
     def test_handle_events_normal(self):
         """Test that player movement is handled during normal gameplay"""
-        # Set game_won to False
+        # Set game_won and game_lost to False
         self.game.game_won = False
+        self.game.game_lost = False
         
         # Mock the player's handle_movement method
         self.game.player.handle_movement = MagicMock()
@@ -132,9 +163,10 @@ class TestGame(unittest.TestCase):
         self.game.screen = mock_screen
         
         try:
-            # Mock the map, player, and UI manager render methods
+            # Mock the map, player, enemy, and UI manager render methods
             self.game.map.render = MagicMock()
             self.game.player.render = MagicMock()
+            self.game.enemy.render = MagicMock()
             self.game.ui_manager.render = MagicMock()
             
             # Render the game
@@ -144,6 +176,7 @@ class TestGame(unittest.TestCase):
             mock_screen.fill.assert_called_once_with(self.game.BLACK)
             self.game.map.render.assert_called_once_with(mock_screen)
             self.game.player.render.assert_called_once_with(mock_screen)
+            self.game.enemy.render.assert_called_once_with(mock_screen)
             self.game.ui_manager.render.assert_called_once_with(mock_screen)
         finally:
             # Restore the original screen
