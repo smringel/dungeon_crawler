@@ -140,24 +140,23 @@ class Player(Character):
         weapon_end_x = self.pos[0] + math.cos(self.weapon_angle) * self.weapon_radius
         weapon_end_y = self.pos[1] + math.sin(self.weapon_angle) * self.weapon_radius
         
-        # Check for collision with enemy
-        enemy = self.game.enemy
-        
-        # Calculate distance from weapon endpoint to enemy
-        dx = weapon_end_x - enemy.pos[0]
-        dy = weapon_end_y - enemy.pos[1]
-        distance = math.sqrt(dx*dx + dy*dy)
-        
-        # Check if weapon hit the enemy (within enemy size)
-        if distance <= enemy.size:
-            # Only count a hit if enough time has passed since the last hit
-            current_time = pygame.time.get_ticks() / 1000.0
-            if current_time - enemy.last_hit_time >= 0.5:  # Prevent multiple hits in quick succession
-                enemy.last_hit_time = current_time
-                
-                # Stun the enemy for 1 second
-                enemy.is_stunned = True
-                enemy.stun_until = current_time + 1.0
+        # Check for collisions with all enemies
+        for enemy in self.game.enemies:
+            # Calculate distance from weapon endpoint to enemy
+            dx = weapon_end_x - enemy.pos[0]
+            dy = weapon_end_y - enemy.pos[1]
+            distance = math.sqrt(dx*dx + dy*dy)
+            
+            # Check if weapon hit the enemy (within enemy size)
+            if distance <= enemy.size:
+                # Only count a hit if enough time has passed since the last hit
+                current_time = pygame.time.get_ticks() / 1000.0
+                if current_time - enemy.last_hit_time >= 0.5:  # Prevent multiple hits in quick succession
+                    enemy.last_hit_time = current_time
+                    
+                    # Stun the enemy for 1 second
+                    enemy.is_stunned = True
+                    enemy.stun_until = current_time + 1.0
     
     def render(self, screen):
         """Render the player and weapon

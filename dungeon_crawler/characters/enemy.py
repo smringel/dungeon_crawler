@@ -10,17 +10,21 @@ from dungeon_crawler.characters.character import Character
 class Enemy(Character):
     """Enemy character that chases the player"""
     
-    def __init__(self, game):
+    def __init__(self, game, region=None):
         """Initialize the enemy
         
         Args:
             game: The Game instance this enemy belongs to
+            region: The specific region this enemy should be placed in (optional)
         """
         # Set game reference first so we can access it before calling super().__init__
         self.game = game
         
         # Set detection radius before calling _find_valid_start_position via super().__init__
         self.detection_radius = game.map.portal_manager.portal_radius // 2  # Half of portal radius
+        
+        # Store the region this enemy belongs to
+        self.region = region
         
         # Track sleep state
         self.sleep_until = time.time() + 5  # Sleep for 5 seconds
@@ -49,13 +53,15 @@ class Enemy(Character):
         Returns:
             list: [x, y] position in pixels
         """
-        # Can start in any region, including the player's region
+        # Get all regions first
         regions = self.game.map._find_disconnected_regions()
         
-        # Minimum safe distance from portals (3x the capture radius)
-        min_portal_distance = self.detection_radius * 3
-        
-        if regions:
+        # If a specific region was provided, use it; otherwise, choose randomly
+        if self.region:
+            enemy_region = self.region
+        else:
+            # Can start in any region, including the player's region
+            # Choose a random region
             # Filter regions to ensure they're large enough
             valid_regions = []
             for region in regions:
@@ -68,36 +74,39 @@ class Enemy(Character):
             
             # Choose a random region
             enemy_region = random.choice(valid_regions)
+        
+        # Minimum safe distance from portals (3x the capture radius)
+        min_portal_distance = self.detection_radius * 3
+        
+        # Try to find a position away from portals
+        valid_positions = []
+        for tile_x, tile_y in enemy_region:
+            # Convert to pixel coordinates (center of tile)
+            pos_x = tile_x * self.game.map.tile_size + self.game.map.tile_size // 2
+            pos_y = tile_y * self.game.map.tile_size + self.game.map.tile_size // 2
             
-            # Try to find a position away from portals
-            valid_positions = []
-            for tile_x, tile_y in enemy_region:
-                # Convert to pixel coordinates (center of tile)
-                pos_x = tile_x * self.game.map.tile_size + self.game.map.tile_size // 2
-                pos_y = tile_y * self.game.map.tile_size + self.game.map.tile_size // 2
-                
-                # Check distance from all portals
-                far_enough = True
-                for portal_x, portal_y in self.game.map.portal_manager.portals:
-                    distance = math.sqrt((pos_x - portal_x)**2 + (pos_y - portal_y)**2)
-                    if distance < min_portal_distance:
-                        far_enough = False
-                        break
-                
-                if far_enough:
-                    valid_positions.append((pos_x, pos_y))
+            # Check distance from all portals
+            far_enough = True
+            for portal_x, portal_y in self.game.map.portal_manager.portals:
+                distance = math.sqrt((pos_x - portal_x)**2 + (pos_y - portal_y)**2)
+                if distance < min_portal_distance:
+                    far_enough = False
+                    break
             
-            # If we found valid positions, choose one randomly
-            if valid_positions:
-                pos_x, pos_y = random.choice(valid_positions)
-                return [pos_x, pos_y]
+            if far_enough:
+                valid_positions.append((pos_x, pos_y))
             
-            # Fallback: choose any position in the region
-            tile_x, tile_y = random.choice(list(enemy_region))
-            return [
-                tile_x * self.game.map.tile_size + self.game.map.tile_size // 2,
-                tile_y * self.game.map.tile_size + self.game.map.tile_size // 2
-            ]
+        # If we found valid positions, choose one randomly
+        if valid_positions:
+            pos_x, pos_y = random.choice(valid_positions)
+            return [pos_x, pos_y]
+        
+        # Fallback: choose any position in the region
+        tile_x, tile_y = random.choice(list(enemy_region))
+        return [
+            tile_x * self.game.map.tile_size + self.game.map.tile_size // 2,
+            tile_y * self.game.map.tile_size + self.game.map.tile_size // 2
+        ]
         
         # Use the base class implementation as a last resort
         return super()._find_valid_start_position()

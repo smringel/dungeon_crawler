@@ -42,8 +42,9 @@ class Game:
         # Create the player
         self.player = Player(self)
         
-        # Create the enemy
-        self.enemy = Enemy(self)
+        # Create multiple enemies (one per region)
+        self.enemies = []
+        self._create_enemies()
         
         # Create the UI manager
         self.ui_manager = UIManager(self)
@@ -75,19 +76,37 @@ class Game:
         # Update player's weapon
         self.player.update_weapon()
         
-        # Update enemy
-        self.enemy.update()
+        # Update all enemies
+        for enemy in self.enemies:
+            enemy.update()
+            
+            # Check for collision with any enemy
+            if enemy.check_collision_with_player():
+                self.game_lost = True
+                self.lose_message_time = pygame.time.get_ticks()
+                break
+    
+    def _create_enemies(self):
+        """Create one enemy per region"""
+        # Clear existing enemies
+        self.enemies = []
         
-        # Check for collision with enemy
-        if self.enemy.check_collision_with_player():
-            self.game_lost = True
-            self.lose_message_time = pygame.time.get_ticks()
+        # Get all regions
+        regions = self.map._find_disconnected_regions()
+        
+        # Create one enemy per region
+        for region in regions:
+            enemy = Enemy(self, region)
+            self.enemies.append(enemy)
     
     def reset_game(self):
         """Reset the game state and generate a new map"""
         self.map.generate_random_map()
         self.player.reset_position()
-        self.enemy.reset_position()
+        
+        # Recreate enemies for the new map
+        self._create_enemies()
+        
         self.game_won = False
         self.game_lost = False
         self.coins_collected = 0
@@ -119,8 +138,9 @@ class Game:
         # Draw player
         self.player.render(self.screen)
         
-        # Draw enemy
-        self.enemy.render(self.screen)
+        # Draw all enemies
+        for enemy in self.enemies:
+            enemy.render(self.screen)
         
         # Draw UI elements
         self.ui_manager.render(self.screen)
