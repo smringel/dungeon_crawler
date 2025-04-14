@@ -69,6 +69,10 @@ class CoinManager:
                 tile_x, tile_y = region_tiles.pop(0)  # Take from the front since we shuffled
                 attempts += 1
                 
+                # Skip wall tiles - ensure coins are only placed on floor tiles
+                if self.map.layout[tile_y][tile_x] == 1:  # 1 represents a wall
+                    continue
+                
                 # Convert to pixel coordinates (center of tile)
                 coin_x = tile_x * self.map.tile_size + self.map.tile_size // 2
                 coin_y = tile_y * self.map.tile_size + self.map.tile_size // 2
@@ -110,6 +114,10 @@ class CoinManager:
             while coins_added < self.total_coins and all_tiles:
                 tile_x, tile_y = all_tiles.pop(0)
                 
+                # Skip wall tiles - ensure coins are only placed on floor tiles
+                if self.map.layout[tile_y][tile_x] == 1:  # 1 represents a wall
+                    continue
+                    
                 # Convert to pixel coordinates (center of tile)
                 coin_x = tile_x * self.map.tile_size + self.map.tile_size // 2
                 coin_y = tile_y * self.map.tile_size + self.map.tile_size // 2
@@ -132,6 +140,42 @@ class CoinManager:
                 
                 # If position is valid, add the coin
                 if not too_close_to_portal and not too_close_to_coin:
+                    self.coins.append((coin_x, coin_y))
+                    coins_added += 1
+                    
+        # Final fallback: If we still don't have enough coins, place them anywhere valid
+        if coins_added < self.total_coins:
+            print(f"Warning: Only placed {coins_added}/{self.total_coins} coins with normal constraints. Using emergency placement.")
+            
+            # Create a list of all floor tiles
+            all_floor_tiles = []
+            for y in range(len(self.map.layout)):
+                for x in range(len(self.map.layout[0])):
+                    # Only consider floor tiles (not walls)
+                    if self.map.layout[y][x] == 0:
+                        all_floor_tiles.append((x, y))
+            
+            # Shuffle to avoid bias
+            random.shuffle(all_floor_tiles)
+            
+            # Place remaining coins with minimal constraints
+            while coins_added < self.total_coins and all_floor_tiles:
+                tile_x, tile_y = all_floor_tiles.pop(0)
+                
+                # Convert to pixel coordinates (center of tile)
+                coin_x = tile_x * self.map.tile_size + self.map.tile_size // 2
+                coin_y = tile_y * self.map.tile_size + self.map.tile_size // 2
+                
+                # Only check if directly on top of another coin
+                too_close_to_coin = False
+                for existing_coin_x, existing_coin_y in self.coins:
+                    distance = ((coin_x - existing_coin_x) ** 2 + (coin_y - existing_coin_y) ** 2) ** 0.5
+                    if distance < self.coin_radius * 2:  # Minimal separation
+                        too_close_to_coin = True
+                        break
+                
+                # If position is valid, add the coin
+                if not too_close_to_coin:
                     self.coins.append((coin_x, coin_y))
                     coins_added += 1
     
