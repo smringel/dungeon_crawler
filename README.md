@@ -7,8 +7,10 @@ A 2D dungeon crawler game built in Python with procedurally generated dungeons, 
 - **Procedurally Generated Maps**: Every game generates a unique dungeon layout
 - **Portal System**: Colored portals connect different regions of the dungeon
 - **Coin Collection**: Collect all 5 gold coins to win the game
-- **Enemy AI**: Avoid the enemy that hunts you down (sleeps for 5 seconds at the start)
-- **Multiple Regions**: Maps are divided into connected regions via portals
+- **Multiple Enemies**: Each region has its own enemy that hunts you down
+- **Enemy AI**: Enemies sleep for 5 seconds at the start and use advanced pathfinding
+- **Weapon System**: Press SPACEBAR to activate your weapon and stun enemies
+- **Multiple Regions**: Maps are divided into connected regions via portals, each at least 6 tiles large
 
 ## Setup
 
@@ -42,8 +44,9 @@ python main.py
 ## How to Play
 
 - **Arrow Keys**: Move the player (green circle)
+- **SPACEBAR**: Activate your weapon to stun enemies for 1 second
 - **Collect**: All 5 gold coins to win
-- **Avoid**: The enemy (red circle) that chases you
+- **Avoid/Stun**: The enemies (red circles) that chase you
 - **Use**: Colored portals to navigate between dungeon regions
 - **Press R**: Generate a new map or restart after winning/losing
 
@@ -88,11 +91,19 @@ python main.py
 3. You cannot walk through walls (gray blocks)
 4. Collect all 5 gold coins scattered throughout the dungeon to win
 5. Blue and purple circles are portals that teleport you between disconnected areas of the dungeon
-6. After winning, press R to generate a new dungeon and play again
+6. Each region has its own enemy (red circle) that will chase you
+7. Press SPACEBAR to activate your weapon and stun enemies for 1 second
+8. After winning, press R to generate a new dungeon and play again
 
 ### Map Generation
 
-The game uses a cellular automata algorithm to create natural-looking cave systems. Each time you start the game or press R, you'll get a different dungeon layout to explore.
+The game uses a cellular automata algorithm to create natural-looking cave systems. Each time you start the game or press R, you'll get a different dungeon layout to explore. The map generator ensures:
+
+- At least 2 distinct regions (often 3 or more)
+- Each region is at least 6 tiles large for proper gameplay
+- Small regions are automatically merged with larger ones
+- Coins are always placed in accessible locations
+- One enemy spawns in each region
 
 ### Portal System
 
