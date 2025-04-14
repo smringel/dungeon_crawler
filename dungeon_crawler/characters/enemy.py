@@ -65,7 +65,7 @@ class Enemy(Character):
             # Filter regions to ensure they're large enough
             valid_regions = []
             for region in regions:
-                if len(region) >= 9:  # Minimum size to ensure enough space (3x3 tiles)
+                if len(region) >= 6:  # Minimum size to ensure enough space for enemy movement
                     valid_regions.append(region)
             
             # If no valid regions, use all regions

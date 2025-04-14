@@ -38,10 +38,15 @@ class MapGenerator:
         
         # Check if all regions are large enough, if not regenerate
         attempts = 0
-        while not self._check_regions_size() and attempts < 5:
+        max_attempts = 10  # Increase max attempts to find a good map
+        while not self._check_regions_size() and attempts < max_attempts:
             # Try again with different parameters
             self._regenerate_layout()
             attempts += 1
+            
+        # If we still don't have valid regions, force merge small regions
+        if not self._check_regions_size():
+            self._merge_small_regions()
     
     def _count_wall_neighbors(self, x, y):
         """Count the number of walls in the 8 neighboring cells"""
@@ -268,7 +273,7 @@ class MapGenerator:
         self._force_create_second_region()
     
     def _check_regions_size(self):
-        """Check if all regions are at least 9 tiles in size
+        """Check if all regions are at least 6 tiles in size
         
         Returns:
             bool: True if all regions are large enough, False otherwise
@@ -277,13 +282,83 @@ class MapGenerator:
         regions = self.map._find_disconnected_regions()
         
         # Check if each region is large enough
-        min_region_size = 9  # Minimum 3x3 grid
+        min_region_size = 6  # Minimum size for a playable region
         for region in regions:
             if len(region) < min_region_size:
+                print(f"Found region with only {len(region)} tiles, minimum is {min_region_size}")
                 return False
                 
         # Also check if we have at least 2 regions
         if len(regions) < 2:
+            print("Not enough regions found")
             return False
             
         return True
+        
+    def _merge_small_regions(self):
+        """Merge small regions by removing walls between them
+        
+        This ensures all regions meet the minimum size requirement
+        """
+        print("Attempting to merge small regions...")
+        regions = self.map._find_disconnected_regions()
+        
+        # Sort regions by size (smallest first)
+        regions.sort(key=len)
+        
+        min_region_size = 6  # Minimum size for a playable region
+        
+        # Find small regions that need to be merged
+        small_regions = [region for region in regions if len(region) < min_region_size]
+        
+        for small_region in small_regions:
+            # Find the closest region to merge with
+            closest_region = None
+            min_distance = float('inf')
+            
+            # Calculate center of small region
+            small_x_sum = sum(x for x, y in small_region)
+            small_y_sum = sum(y for x, y in small_region)
+            small_center_x = small_x_sum / len(small_region)
+            small_center_y = small_y_sum / len(small_region)
+            
+            # Find the closest region that's large enough
+            for region in regions:
+                if region != small_region and len(region) >= min_region_size:
+                    # Calculate center of this region
+                    x_sum = sum(x for x, y in region)
+                    y_sum = sum(y for x, y in region)
+                    center_x = x_sum / len(region)
+                    center_y = y_sum / len(region)
+                    
+                    # Calculate distance between centers
+                    distance = ((center_x - small_center_x) ** 2 + (center_y - small_center_y) ** 2) ** 0.5
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_region = region
+            
+            if closest_region:
+                # Create a path between the small region and the closest region
+                # Find the closest points between the two regions
+                min_point_distance = float('inf')
+                small_point = None
+                closest_point = None
+                
+                for sx, sy in small_region:
+                    for cx, cy in closest_region:
+                        dist = ((sx - cx) ** 2 + (sy - cy) ** 2) ** 0.5
+                        if dist < min_point_distance:
+                            min_point_distance = dist
+                            small_point = (sx, sy)
+                            closest_point = (cx, cy)
+                
+                if small_point and closest_point:
+                    # Create a path between these points by removing walls
+                    self._create_path(small_point[0], small_point[1], closest_point[0], closest_point[1])
+                    print(f"Created path between regions of size {len(small_region)} and {len(closest_region)}")
+        
+        # Verify regions again
+        regions = self.map._find_disconnected_regions()
+        print(f"After merging: {len(regions)} regions with sizes: {[len(r) for r in regions]}")
+
